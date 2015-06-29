@@ -1,6 +1,7 @@
 require 'logstash/namespace'
 require 'logstash/outputs/base'
 require 'jruby-kafka'
+require "securerandom"
 
 # Write events to a Kafka topic. This uses the Kafka Producer API to write messages to a topic on
 # the broker.
@@ -21,8 +22,8 @@ require 'jruby-kafka'
 # For more information see http://kafka.apache.org/documentation.html#theproducer
 #
 # Kafka producer configuration: http://kafka.apache.org/documentation.html#producerconfigs
-class LogStash::Outputs::Kafka < LogStash::Outputs::Base
-  config_name 'kafka'
+class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
+  config_name 'ekafka'
 
   default :codec, 'json'
   # This is for bootstrapping and the producer will only use it for getting metadata (topics,
@@ -113,10 +114,17 @@ class LogStash::Outputs::Kafka < LogStash::Outputs::Base
   #       }
   #     }
   config :partition_key_format, :validate => :string, :default => nil
+  # The path in which ekafka can store the offsets it has seen in the messages
+  config :offset_path, :validate => :string, :default => ''
+  # The path in which ekafka can store the offsets it has seen in the messages
+  config :offset_indicator, :validate => :string, :default => ''
 
   public
   def register
+    require "metriks"
     LogStash::Logger.setup_log4j(@logger)
+
+    @offsets = ThreadSafe::Cache.new { |h,k| h[k] = Metriks.gauge(gauge_key(k)) }
 
     options = {
         :broker_list => @broker_list,
@@ -155,6 +163,7 @@ class LogStash::Outputs::Kafka < LogStash::Outputs::Base
     end
   end # def register
 
+  public
   def receive(event)
     return unless output?(event)
     if event == LogStash::SHUTDOWN
@@ -162,11 +171,36 @@ class LogStash::Outputs::Kafka < LogStash::Outputs::Base
       return
     end
     @partition_key = if @partition_key_format.nil? then nil else event.sprintf(@partition_key_format) end
+    if @offset_indicator != '' then offsets[event[@offset_indicator]].set(event['offset']) end
     @codec.encode(event)
     @partition_key = nil
   end
 
+  public
+  def gauge_key(key)
+    "#{@random_key_prefix}_#{key}"
+  end
+
+  public
   def teardown
     @producer.close
+    if @offset_path != ''
+      if File.exist?(@offset_path)
+        File.delete(@offset_path)
+      end
+      seralize_offsets
+    end
   end
+
+  private
+  def seralize_offsets
+    open(@offset_path, 'a') do |f|
+      @offsets.each_pair do |path, gauge|
+        f.puts "#{path}:#{gauge.value}"
+        @offsets.delete(path)
+      end
+    end
+    @offset_path = ""
+  end # seralize_offsets
+
 end #class LogStash::Outputs::Kafka
