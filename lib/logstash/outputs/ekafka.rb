@@ -197,6 +197,7 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
     open(@offset_path, 'a') do |f|
       @offsets.each_pair do |path, gauge|
         f.puts "#{path}:#{gauge.value}"
+        puts "#{path}:#{gauge.value}"
         @offsets.delete(path)
       end
     end
