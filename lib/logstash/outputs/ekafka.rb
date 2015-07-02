@@ -174,12 +174,12 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
     if @offset_indicator != '' then @offsets[event[@offset_indicator]].set(event['offset']+event['msg_len']) end
     @codec.encode(event)
     @partition_key = nil
-  end
+  end # receive
 
   public
   def gauge_key(key)
-    "#{@random_key_prefix}_#{key}"
-  end
+    return "#{@random_key_prefix}_#{key}"
+  end # gauge_key
 
   public
   def teardown
@@ -190,7 +190,7 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
       end
       seralize_offsets
     end
-  end
+  end # teardown
 
   private
   def seralize_offsets
