@@ -171,7 +171,7 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
       return
     end
     @partition_key = if @partition_key_format.nil? then nil else event.sprintf(@partition_key_format) end
-    if @offset_indicator != '' then offsets[event[@offset_indicator]].set(event['offset']) end
+    if @offset_indicator != '' then @offsets[event[@offset_indicator]].set(event['offset']+event['msg_len']) end
     @codec.encode(event)
     @partition_key = nil
   end
