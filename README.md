@@ -1,4 +1,4 @@
-# Logstash Plugin Output - Enhanced Kafka (efile)
+# Logstash Plugin Output - Enhanced Kafka (ekafka)
 
 This is an input plugin for [Logstash](https://github.com/elasticsearch/logstash).
 
