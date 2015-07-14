@@ -224,6 +224,7 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
         else
           set_val = [@offsets[name].value, count].max
         end
+        @offsets[name].set(set_val)
       end
     end
   end # ingest_offsets
