@@ -219,7 +219,11 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
         parsed_line = line.reverse.split(':', 2).map(&:reverse)
         count = parsed_line[0].to_i
         name = parsed_line[1]
-        @offsets[name].set([@offsets[name].value, count].max)
+        if @offsets[name].value.nil?
+          set_val = count
+        else
+          set_val = [@offsets[name].value, count].max
+        end
       end
     end
   end # ingest_offsets
