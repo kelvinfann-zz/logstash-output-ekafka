@@ -122,14 +122,15 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
   public
   def register
     require "metriks"
+    LogStash::Logger.setup_log4j(@logger)
+
+    @offsets = ThreadSafe::Cache.new { |h,k| h[k] = Metriks.gauge(gauge_key(k)) }
 
     if @offset_path != "" && File.exist?(@offset_path)
       ingest_offsets
     end
 
-    LogStash::Logger.setup_log4j(@logger)
 
-    @offsets = ThreadSafe::Cache.new { |h,k| h[k] = Metriks.gauge(gauge_key(k)) }
 
     options = {
         :broker_list => @broker_list,
@@ -218,8 +219,7 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
         parsed_line = line.reverse.split(':', 2).map(&:reverse)
         count = parsed_line[0].to_i
         name = parsed_line[1]
-        increment_amount = [@offsets[name].value, count].max - @offsets[name].value
-        @offsets[name].increment(increment_amount)
+        @offsets[name].set([@offsets[name].value, count].max)
       end
     end
   end # ingest_offsets
