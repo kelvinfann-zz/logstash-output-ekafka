@@ -122,6 +122,11 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
   public
   def register
     require "metriks"
+
+    if @offset_path != "" && File.exist?(@offset_path)
+      ingest_offsets
+    end
+
     LogStash::Logger.setup_log4j(@logger)
 
     @offsets = ThreadSafe::Cache.new { |h,k| h[k] = Metriks.gauge(gauge_key(k)) }
@@ -185,15 +190,16 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
   def teardown
     @producer.close
     if @offset_path != ''
-      if File.exist?(@offset_path)
-        File.delete(@offset_path)
-      end
-      seralize_offsets
+      write_offsets
     end
   end # teardown
 
   private
-  def seralize_offsets
+  def write_offsets
+    if File.exist?(@offset_path)
+      ingest_offsets
+      File.delete(@offset_path)
+    end
     open(@offset_path, 'a') do |f|
       @offsets.each_pair do |path, gauge|
         f.puts "#{path}:#{gauge.value}"
@@ -202,6 +208,20 @@ class LogStash::Outputs::Ekafka < LogStash::Outputs::Base
       end
     end
     @offset_path = ""
-  end # seralize_offsets
+  end # write_offsets
+
+
+  private 
+  def ingest_offsets
+    open(@offset_path, 'r') do |f|
+      f.each_line do |line|
+        parsed_line = line.reverse.split(':', 2).map(&:reverse)
+        count = parsed_line[0].to_i
+        name = parsed_line[1]
+        increment_amount = [@offsets[name].value, count].max - @offsets[name].value
+        @offsets[name].increment(increment_amount)
+      end
+    end
+  end # ingest_offsets
 
 end #class LogStash::Outputs::Kafka
