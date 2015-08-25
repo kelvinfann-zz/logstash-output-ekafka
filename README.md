@@ -1,3 +1,5 @@
+NOTE this plugin deprecated after logstash 1.5.1
+
 # Logstash Plugin Output - Enhanced Kafka (ekafka)
 
 This is an input plugin for [Logstash](https://github.com/elasticsearch/logstash).
